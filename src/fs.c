@@ -16,10 +16,92 @@
 
 #include <fuse3/fuse.h>
 
+#include <dirent.h>
+#include <errno.h>
+#include <limits.h>
 #include <stdlib.h>
+#include <string.h>
 
-int fs_getattr (const char *path, struct stat* stbuf, struct fuse_file_info *fi) {
-	LOG_DEBUG("`fs_getattr` invoked");
+static void fs_fullpath(char fpath[PATH_MAX], const char *path) {
+	strcpy(fpath, CONTEXT->root_dir);
+  strncat(fpath, path, PATH_MAX);
+
+  log_msg(
+		"`fs_fullpath` rootdir = \"%s\", path = \"%s\", fpath = \"%s\"\n",
+		CONTEXT->root_dir, path, fpath
+	);
+}
+
+
+/******************************
+ * FUSE API IMPLEMENTATIONS
+ ******************************/
+
+int fs_readdir(
+	const char* path,
+	void* buf,
+	fuse_fill_dir_t filler,
+	off_t offset,
+	struct fuse_file_info* info,
+	__attribute__ ((unused)) enum fuse_readdir_flags flags
+) {
+	DIR* dd;
+	struct dirent* dir_entry;
+	int ret = 0;
+
+	log_msg(
+		"`fs_readdir` path=\"%s\" | buf=0x%08x | filler=0x%08x | offset=%lld | info=0x%08x",
+		path, buf, filler, offset, info
+	);
+
+	dd = (DIR*)(uintptr_t) info->fh;
+
+	// ea directory contains at least two entries, . and ..
+	// this, if the first call to `readdir` returns NULL, we've an error
+	dir_entry = readdir(dd);
+
+	log_msg("`readdir` returned 0x%p\n", dir_entry);
+
+	if (dir_entry == 0) {
+		log_msg("readdir");
+
+		ret = -errno;
+		return ret;
+	}
+
+	// copy the entire directory into the buffer
+	// we'll exit the loop when either `readdir` returns NULL (we've read the entire directory),
+	// or `filler` yields a non-zero return code (the buffer is full)
+	do {
+		log_msg("invoking `filler` with entry %s\n", dir_entry->d_name);
+
+		if (filler(buf, dir_entry->d_name, NULL, 0, 0) != 0) {
+			log_msg("`fs_readdir` `filler` -  buffer full");
+
+			return -ENOMEM;
+		}
+	} while ((dir_entry = readdir(dd)) != NULL);
+
+	return ret;
+}
+
+void *fs_init(
+	__attribute__ ((unused)) struct fuse_conn_info* conn,
+	struct fuse_config* conf
+) {
+	log_msg("`fs_init` invoked - setting kernel cache flag; file contents cache flushing on every open is now disabled");
+
+	conf->kernel_cache = 1;
+
+	return CONTEXT;
+}
+
+int fs_getattr (
+	const char *path,
+	struct stat* stbuf,
+	__attribute__ ((unused)) struct fuse_file_info* info
+) {
+	log_msg("`fs_getattr` invoked");
 
 	int ret = 0;
 
@@ -56,31 +138,68 @@ int fs_getattr (const char *path, struct stat* stbuf, struct fuse_file_info *fi)
 	return ret;
 }
 
+int fs_open(const char* path, struct fuse_file_info* info) {
+  int ret = 0;
+  int fd;
+  char f_path[PATH_MAX];
+
+  log_msg(
+		"`fs_open` - path\"%s\", info=0x%08x)\n",
+	  path, info
+	);
+
+	fs_fullpath(f_path, path);
+
+  fd = open(f_path, info->flags);
+
+  if (fd < 0) {
+		log_msg("`fs_open` - error opening file");
+		ret = -errno;
+	}
+
+  info->fh = fd;
+
+  return ret;
+}
+
 struct fuse_operations fs_ops = {
+	.init = fs_init,
 	.getattr = fs_getattr,
+	.open = fs_open,
 };
+
+
+/******************************
+ * Initialization
+ ******************************/
 
 int main (int argc, char* argv[]) {
 	if (is_root_user()) {
-		panic("fs cannot be mounted by the root user");
+		die("fs cannot be mounted by the root user");
 	}
 
 	int fuse_stat;
 
 	fs_state* fs_context = malloc(sizeof(fs_state));
 
-  if (fs_context == NULL) {
-		LOG_ERROR("failed to allocate memory for FUSE state");
-		panic("memory allocation failure - fs_context");
+  if (!fs_context) {
+		panic("malloc");
 	}
 
-  // fs_context->logfile = log_open();
+	// TODO validate
+	fs_context->root_dir = realpath("/", NULL);
+	// fs_context->root_dir = realpath(argv[argc-2], NULL);
 
-	fprintf(stderr, "Fuse library version %d.%d\n", FUSE_MAJOR_VERSION, FUSE_MINOR_VERSION);
+	// argv[argc-2] = argv[argc-1];
+	// argv[argc-1] = NULL;
+	// argc--;
+
+  // fs_context->log_file = log_init_transport();
 
 	fuse_stat = fuse_main(argc, argv, &fs_ops, fs_context);
 
-	LOG_DEBUG("fuse_main invoked");
+	log_msg("Fuse library version %d.%d\n", FUSE_MAJOR_VERSION, FUSE_MINOR_VERSION);
+	log_msg("`fuse_main` invoked - fs context has been initialized");
 
 	return fuse_stat;
 }

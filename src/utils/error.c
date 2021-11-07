@@ -17,12 +17,23 @@
 #include <stdnoreturn.h>
 
 /**
+ * @brief Exit the program with return code 1 and perror set
+ *
+ * @param msg message
+ */
+noreturn void panic(const char* msg) {
+  perror(msg);
+
+  exit(EXIT_FAILURE);
+}
+
+/**
  * @brief Exit the program with return code 1
  *
- * @param s message
+ * @param msg message
  */
-noreturn void panic(const char* s) {
-  perror(s);
+noreturn void die(const char* msg) {
+  fprintf(stderr, "[ERROR] %s\n", msg);
 
   exit(EXIT_FAILURE);
 }

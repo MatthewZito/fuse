@@ -1,4 +1,0 @@
-- [ ] C prettier
-- [ ] C lint
-- [ ] C describe
-- [ ] c fetch
