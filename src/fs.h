@@ -21,6 +21,6 @@ typedef struct fs_state {
 
 #define CONTEXT ((struct fs_state*) fuse_get_context()->private_data)
 
-void log_msg(const char* fmt, ...);
+void log_msg (const char* fmt, ...);
 
 #endif /* FS_H */

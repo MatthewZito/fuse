@@ -21,7 +21,7 @@
  *
  * @param msg message
  */
-noreturn void panic(const char* msg) {
+noreturn void panic (const char* msg) {
   perror(msg);
 
   exit(EXIT_FAILURE);
@@ -32,7 +32,7 @@ noreturn void panic(const char* msg) {
  *
  * @param msg message
  */
-noreturn void die(const char* msg) {
+noreturn void die (const char* msg) {
   fprintf(stderr, "[ERROR] %s\n", msg);
 
   exit(EXIT_FAILURE);

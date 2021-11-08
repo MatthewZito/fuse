@@ -22,7 +22,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-static void fs_fullpath(char fpath[PATH_MAX], const char *path) {
+static void fs_fullpath (char fpath[PATH_MAX], const char *path) {
 	strcpy(fpath, CONTEXT->root_dir);
   strncat(fpath, path, PATH_MAX);
 
@@ -37,7 +37,7 @@ static void fs_fullpath(char fpath[PATH_MAX], const char *path) {
  * FUSE API IMPLEMENTATIONS
  ******************************/
 
-int fs_readdir(
+int fs_readdir (
 	const char* path,
 	void* buf,
 	fuse_fill_dir_t filler,
@@ -85,7 +85,7 @@ int fs_readdir(
 	return ret;
 }
 
-void *fs_init(
+void *fs_init (
 	__attribute__ ((unused)) struct fuse_conn_info* conn,
 	struct fuse_config* conf
 ) {
@@ -138,7 +138,7 @@ int fs_getattr (
 	return ret;
 }
 
-int fs_open(const char* path, struct fuse_file_info* info) {
+int fs_open (const char* path, struct fuse_file_info* info) {
   int ret = 0;
   int fd;
   char f_path[PATH_MAX];
@@ -162,10 +162,64 @@ int fs_open(const char* path, struct fuse_file_info* info) {
   return ret;
 }
 
+int fs_mknod (const char* path, mode_t mode, dev_t dev) {
+  int ret;
+  char f_path[PATH_MAX];
+
+  log_msg(
+		"`fs_mknod` path=\"%s\", mode=0%3o, dev=%lld",
+	  path, mode, dev
+	);
+
+	fs_fullpath(f_path, path);
+
+  if (S_ISREG(mode)) {
+		if ((ret = open(f_path, O_CREAT | O_EXCL | O_WRONLY, mode) >= 0)) {
+			ret = close(ret);
+		}
+  } else {
+		if (S_ISFIFO(mode)) {
+			ret = mkfifo(f_path, mode);
+		} else {
+			ret = mknod(f_path, mode, dev);
+		}
+	}
+
+	return ret;
+}
+
+int fs_mkdir (const char* path, mode_t mode) {
+  char f_path[PATH_MAX];
+
+  log_msg(
+		"`fs_mkdir` path=\"%s\", mode=0%3o",
+	  path, mode
+	);
+
+  fs_fullpath(f_path, path);
+
+  return mkdir(f_path, mode);
+}
+
+int fs_rmdir (const char* path) {
+	char f_path[PATH_MAX];
+
+	log_msg(
+		"`fs_rmdir` path=\"%s\"",
+		path
+	);
+
+	fs_fullpath(f_path, path);
+
+	return rmdir(f_path);
+}
+
 struct fuse_operations fs_ops = {
 	.init = fs_init,
 	.getattr = fs_getattr,
 	.open = fs_open,
+	.mknod = fs_mknod,
+	.mkdir = fs_mkdir,
 };
 
 

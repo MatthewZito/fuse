@@ -9,10 +9,10 @@
 
 char* now (void);
 
-FILE* log_init_transport();
+FILE* log_init_transport (void);
 
-char* fmt_str(char* fmt, char* arg);
+char* fmt_str (char* fmt, char* arg);
 
-void log_msg(const char* fmt, ...);
+void log_msg (const char* fmt, ...);
 
 #endif /* LOGGER_H */

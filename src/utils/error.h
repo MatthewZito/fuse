@@ -3,8 +3,8 @@
 
 #include <stdnoreturn.h>
 
-noreturn void panic(const char* s);
+noreturn void panic (const char* s);
 
-noreturn void die(const char* s);
+noreturn void die (const char* s);
 
 #endif /* ERROR_H */

@@ -24,7 +24,7 @@ char* now (void) {
  *
  * @return FILE*
  */
-FILE* log_init_transport() {
+FILE* log_init_transport (void) {
 	FILE* fd;
 
 	if (!(fd = fopen(log_file, "a"))) {
@@ -37,7 +37,7 @@ FILE* log_init_transport() {
 	return fd;
 }
 
-void log_msg(const char* fmt, ...) {
+void log_msg (const char* fmt, ...) {
 	char buffer[2048];
 	va_list ap;
 
